@@ -1,0 +1,1822 @@
+swagger: "2.0"
+info:
+  title: Demo APIs
+  version: "2.0"
+  description: Use VSCode plugin [OpenAPI (Swagger) Editor](https://marketplace.visualstudio.com/items?itemName=42Crunch.vscode-openapi) to edit this document.
+host: localhost:7890
+schemes:
+  - http
+  - https
+
+paths:
+  /v1/tenant/labels-check:
+    post:
+      summary: 检查label是否存在
+      tags:
+        - labels
+      operationId: labelsCheck
+      parameters:
+        - name: ids
+          in: query
+          type: string
+          required: false
+          description: 逗号分隔的id列表
+        - name: body
+          in: body
+          description: 检查条件
+          schema:
+            $ref: "#/definitions/LabelsCheckRequest"
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/LabelsCheckResponse"
+  /v1/tenant/tenants/{tenantId}/labels:
+    parameters:
+      - $ref: "#/parameters/pathTenantId"
+    post:
+      summary: 创建租户下的标签
+      tags: [labels]
+      operationId: create
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/CreateLabelRequest"
+      responses:
+        400:
+          description: 非法的请求
+        401:
+          description: 认证失败
+        403:
+          description: 无权创建标签
+        409:
+          description: 标签已存在
+        500:
+          description: 内部错误
+        200:
+          description: 成功
+          schema:
+            type: integer
+            format: int64
+    get:
+      summary: 查询租户下的标签
+      tags: [labels]
+      operationId: queryList
+      parameters:
+        - $ref: "#/parameters/queryPageSize"
+        - $ref: "#/parameters/queryCurrentPage"
+        - name: prefix
+          in: query
+          type: string
+          required: false
+          description: 模糊匹配标签名
+        - name: scope
+          in: query
+          type: string
+          default: all
+          enum:
+            - global
+            - tenant
+            - all
+          required: false
+          description: >
+            查询范围，默认all
+            - global 只查全局
+            - tenant 只查当前租户
+            - all 全局+当前租户
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/LabelPageData"
+
+  /v1/tenant/tenants/{tenantId}/labels/batch:
+    parameters:
+      - $ref: "#/parameters/pathTenantId"
+    get:
+      summary: 查询租户下的标签（批量）
+      tags: [labels]
+      operationId: queryListBatch
+      parameters:
+        - name: ids
+          in: query
+          type: string
+          required: false
+          description: 标签id，逗号分隔
+      responses:
+        200:
+          description: 成功
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/LabelFull"
+
+  /v1/tenant/tenants/{tenantId}/labels/{id}:
+    parameters:
+      - $ref: "#/parameters/pathTenantId"
+      - in: path
+        required: true
+        type: integer
+        format: int64
+        name: id
+    get:
+      summary: 获取租户下特定的标签
+      tags: [labels]
+      operationId: getOne
+      responses:
+        404:
+          description: 不存在
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/LabelFull"
+    put:
+      summary: 修改租户下特定的标签
+      tags: [labels]
+      operationId: update
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/UpdateLabelRequest"
+      responses:
+        400:
+          description: 非法请求
+        401:
+          description: 认证失败
+        403:
+          description: 用户无权修改该标签
+        409:
+          description: 标签修改失败，存在同名标签
+        500:
+          description: 内部错误
+        200:
+          description: 成功
+
+  /v1/tenant/tenants/{tenantId}/labels/{ids}:
+    parameters:
+      - $ref: "#/parameters/pathTenantId"
+      - in: path
+        required: true
+        type: string
+        name: ids
+    delete:
+      summary: 删除租户下的特定标签
+      tags: [labels]
+      operationId: delete
+      responses:
+        400:
+          description: 非法请求
+        401:
+          description: 认证失败
+        200:
+          description: 成功（只要一个成功就返回200）
+          schema:
+            type: array
+            description: 删除成功的标签id
+            items:
+              type: integer
+              format: int64
+
+  /v1/tenant/user-tenants:
+    post:
+      summary: 注册租户
+      tags: [user-tenants]
+      operationId: registerTenantAndUser
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/RegisterTenantRequest"
+      responses:
+        400:
+          description: 参数错误/验证码错误
+        409:
+          description: 租户名冲突/邮箱冲突/手机号冲突
+        200:
+          description: 成功
+          schema:
+            type: integer
+            format: int64
+            description: 租户id
+  /v1/tenant/user-tenant-validate:
+    get:
+      summary: 注册校验
+      tags: [user-tenants]
+      operationId: registerValidate
+      parameters:
+        - name: field
+          in: query
+          type: string
+          enum: [name, email, mobile]
+          required: true
+        - name: value
+          in: query
+          type: string
+          required: true
+      responses:
+        200:
+          description: 成功
+          schema:
+            type: boolean
+  /v1/tenant/tenants-csv-file:
+    get:
+      summary: 下载租户信息（CSV格式）
+      tags: [tenant-export]
+      operationId: downloadCSVFile
+      produces:
+        - application/csv
+      parameters:
+        - $ref: "#/parameters/queryCurrentPage"
+        - $ref: "#/parameters/queryPageSize"
+        - name: name
+          in: query
+          type: string
+          required: false
+        - name: status
+          in: query
+          type: integer
+          required: false
+        - name: audited
+          in: query
+          type: boolean
+          required: false
+          description: 默认空查询全部。true 只查已审核，false 只查待审核。
+      responses:
+        200:
+          description: 成功
+          schema:
+            description: CSV文件
+            type: file
+  /v1/tenant/tenant-detail:
+    get:
+      summary: 查询单个租户详情
+      description: 查询参数name和id二选一
+      tags: [tenants]
+      operationId: queryTenantDetail
+      parameters:
+        - name: name
+          in: query
+          type: string
+          required: false
+          description: 租户名（精确匹配）
+        - name: id
+          in: query
+          type: integer
+          format: int64
+          required: false
+          description: 租户id
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/TenantWithManagerAndSpec"
+  /v1/tenant/tenant-audit-statistic:
+    get:
+      summary: 查询租户审核记录统计信息
+      tags: [tenants]
+      operationId: queryTenantAuditStatistic
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/TenantAuditStatistic"
+  /v1/tenant/tenant-audits:
+    get:
+      summary: 查询租户审核记录
+      tags: [tenants]
+      operationId: queryTenantAuditPage
+      parameters:
+        - $ref: "#/parameters/queryCurrentPage"
+        - $ref: "#/parameters/queryPageSize"
+        - name: name
+          in: query
+          type: string
+          required: false
+        - name: mobile
+          in: query
+          type: string
+          required: false
+        - name: email
+          in: query
+          type: string
+          required: false
+        - name: status
+          in: query
+          type: integer
+          required: false
+          description: 是否审核通过 1-通过 2-未通过
+        - name: platform
+          in: query
+          type: string
+          required: false
+          description: 注册平台
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/TenantAuditPageData"
+  /v1/tenant/tenants:
+    post:
+      summary: 创建租户（系统管理员）
+      tags: [tenants]
+      operationId: createByAdministrator
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/CreateTenantRequest"
+      responses:
+        409:
+          description: 租户名重复
+        200:
+          description: 成功
+          schema:
+            type: integer
+            format: int64
+            description: 新创建的租户的id
+    get:
+      summary: 查询租户
+      tags: [tenants]
+      operationId: queryTenantPage
+      parameters:
+        - $ref: "#/parameters/queryCurrentPage"
+        - $ref: "#/parameters/queryPageSize"
+        - name: ids
+          in: query
+          type: string
+          required: false
+          description: 租户id列表，逗号分隔
+        - name: name
+          in: query
+          type: string
+          required: false
+        - name: mobile
+          in: query
+          type: string
+          required: false
+        - name: email
+          in: query
+          type: string
+          required: false
+        - name: status
+          in: query
+          type: integer
+          required: false
+        - name: audited
+          in: query
+          type: boolean
+          required: false
+          description: 默认空查询全部。true 只查已审核，false 只查待审核。
+        - name: platform
+          in: query
+          type: string
+          required: false
+          description: 注册平台
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/TenantPageData"
+  /v1/tenant/tenants/{id}:
+    parameters:
+      - in: path
+        name: id
+        type: integer
+        format: int64
+        required: true
+    put:
+      summary: 更新租户信息
+      operationId: updateOneTenantBasic
+      tags: [tenants]
+      parameters:
+        - in: body
+          name: body
+          schema:
+            $ref: "#/definitions/UpdateTenantBasicRequest"
+      responses:
+        200:
+          description: OK
+  /v1/tenant/tenants/{ids}:
+    delete:
+      summary: 批量删除租户（仅供测试）
+      tags: [tenants]
+      operationId: batchDeleteTenants
+      parameters:
+        - in: path
+          required: true
+          type: string
+          name: ids
+          description: 要删除的id列表，逗号分隔
+      responses:
+        400:
+          description: 非法请求
+        401:
+          description: 认证失败
+        304:
+          description: 未修改
+        200:
+          description: 成功
+          schema:
+            type: integer
+            description: 删除数量
+  /v1/tenant/tenants/all/specification:
+    get:
+      summary: 查询全部租户的规格
+      tags: [tenants]
+      operationId: getSpecOfAll
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/GetAllSpecResponse"
+  /v1/tenant/tenants/all/usage-statistics:
+    get:
+      summary: 查询全部租户的用量统计
+      tags: [tenants]
+      operationId: getUsageStatisticsOfAll
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/GetAllUsageStatisticsResponse"
+  /v1/tenant/tenants/{tenantId}/specification:
+    parameters:
+      - $ref: "#/parameters/pathTenantId"
+    get:
+      summary: 查询租户规格
+      tags: [tenants]
+      operationId: getTenantSpecByTenantId
+      responses:
+        404:
+          description: 租户不存在
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/GetTenantSpecResponse"
+    put:
+      summary: 更新租户的规格
+      tags: [tenants]
+      operationId: updateTenantSpec
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/UpdateTenantSpecRequest"
+      responses:
+        404:
+          description: 租户不存在
+        200:
+          description: 成功
+  /v1/tenant/tenants/{tenantId}/customization:
+    parameters:
+      - $ref: "#/parameters/pathTenantId"
+    get:
+      summary: 查询租户定制化信息
+      description: 权限-当前租户下的所有用户均可调用
+      tags: [tenants]
+      operationId: getTenantCustomizationByTenantId
+      responses:
+        404:
+          description: 租户不存在
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/GetTenantCustomizationResponse"
+    put:
+      summary: 更新租户的定制化信息
+      description: 权限-当前租户的租户管理员可调用
+      tags: [tenants]
+      operationId: updateTenantCustomization
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/UpdateTenantCustomizationRequest"
+      responses:
+        404:
+          description: 租户不存在
+        200:
+          description: 成功
+  /v1/tenant/tenants/{tenantId}/users/public-profile:
+    parameters:
+      - $ref: "#/parameters/pathTenantId"
+    get:
+      summary: 根据id列表获取用户公开信息
+      tags: [tenant-users]
+      operationId: queryTenantUserPublicProfile
+      parameters:
+        - name: ids
+          in: query
+          required: false
+          type: string
+          description: 逗号分隔的用户id列表
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/UserPublicProfileResponse"
+  /v1/tenant/tenants/{tenantId}/users:
+    parameters:
+      - $ref: "#/parameters/pathTenantId"
+    delete:
+      summary: 批量删除租户下的用户信息
+      tags: [tenant-users]
+      operationId: deleteTenantUserBatch
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: "#/definitions/BatchDeleteTenantUserRequest"
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/BaseResp"
+    post:
+      summary: 增加租户下的用户信息
+      tags: [tenant-users]
+      operationId: addTenantUser
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/CreateTenantUserRequest"
+      responses:
+        409:
+          description: 用户已经存在，或用户信息冲突
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/CreateTenantUserResponse"
+    get:
+      summary: 查询租户下的用户
+      tags: [tenant-users]
+      operationId: queryTenantUserPage
+      parameters:
+        - $ref: "#/parameters/queryCurrentPage"
+        - $ref: "#/parameters/queryPageSize"
+        - name: type
+          in: query
+          required: false
+          default: 1
+          enum:
+            [ 1, 2 ]
+          type: integer
+          format: int32
+          description: 子用户类别 1 普通子用户 2 权限子用户（用于单独做权限管理的）
+        - name: status
+          in: query
+          type: integer
+          required: false
+        - name: search
+          in: query
+          type: string
+          required: false
+      responses:
+        404:
+          description: 租户不存在
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/TenantUserPageData"
+
+  /v1/tenant/tenants/{tenantId}/users/{userId}:
+    parameters:
+      - $ref: "#/parameters/pathTenantId"
+      - name: userId
+        in: path
+        type: integer
+        format: int64
+        required: true
+    get:
+      summary: 查询租户下的指定用户信息
+      tags: [tenant-users]
+      operationId: getOneTenantUser
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/TenantUserDetail"
+    put:
+      summary: 更新租户下的指定用户信息
+      tags: [tenant-users]
+      operationId: updateOneTenantUser
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/UpdateTenantUserRequest"
+      responses:
+        200:
+          description: 成功
+    delete:
+      summary: 删除租户下的用户
+      tags: [tenant-users]
+      operationId: deleteTenantUser
+      responses:
+        200:
+          description: 成功. 如果用户不存在，返回的状态码也是200
+          schema:
+            $ref: "#/definitions/BaseResp"
+  /v1/tenant/tenants/{tenantId}/users/{userId}/reset-password:
+    parameters:
+      - $ref: "#/parameters/pathTenantId"
+      - name: userId
+        in: path
+        type: integer
+        format: int64
+        required: true
+    post:
+      summary: 重置指定用户的密码
+      tags: [tenant-users]
+      operationId: resetTenantUserPassword
+      responses:
+        200:
+          description: 成功
+          schema:
+            type: string
+            description: 重置之后的密码
+  /v1/tenant/tenants/{tenantId}/audit/{pass}:
+    parameters:
+      - $ref: "#/parameters/pathTenantId"
+      - name: pass
+        in: path
+        type: boolean
+        required: true
+    put:
+      summary: 审核租户
+      tags: [tenants]
+      operationId: auditTenant
+      responses:
+        200:
+          description: 成功
+
+  /v1/tenant/users/self:
+    put:
+      summary: 用户信息更新
+      tags: [users]
+      operationId: updateCurrentUser
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/UpdateCurrentUserProfileRequest"
+      responses:
+        200:
+          description: 成功
+        304:
+          description: 无需更新
+    get:
+      summary: 获取用户信息
+      tags: [users]
+      operationId: getCurrentUser
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/TenantUserDetail"
+  /v1/tenant/users/self/password:
+    put:
+      summary: 更新当前用户密码
+      tags:
+        - users
+      operationId: updateCurrentUserPassword
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/UpdateCurrentUserPasswordRequest"
+      responses:
+        200:
+          description: 成功
+
+  /v1/tenant/users/self/avatar:
+    put:
+      summary: 更新当前用户的头像
+      tags:
+        - users
+      operationId: updateCurrentUserAvatar
+      parameters:
+        - name: avatar
+          in: formData
+          type: file
+          required: true
+          description: 要上传的头像文件（最大1MB）
+      responses:
+        200:
+          description: 成功
+          schema:
+            type: string
+            description: 更新后的头像访问地址
+  /v1/tenant/users/self/email:
+    put:
+      summary: 更新当前用户邮箱
+      tags:
+        - users
+      operationId: updateCurrentUserEmail
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/UpdateCurrentUserEmailRequest"
+      responses:
+        200:
+          description: 成功
+  /v1/tenant/users/self/mobile:
+    put:
+      summary: 更新当前用户手机号
+      tags:
+        - users
+      operationId: updateCurrentUserMobile
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/UpdateCurrentUserMobileRequest"
+      responses:
+        200:
+          description: 成功
+  /v1/tenant/users/self/tenant-spec:
+    get:
+      summary: 查询当前用户的租户规格信息
+      tags: [users]
+      operationId: getTenantSpecOfCurrentUser
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/GetTenantSpecResponse"
+    put:
+      summary: 更新当前用户的租户信息（租户管理员）
+      tags: [users]
+      operationId: updateTenantSpecOfCurrentUser
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/UpdateSelfTenantSpecRequest"
+      responses:
+        200:
+          description: 成功
+  /v1/tenant/users/self/tenant:
+    get:
+      summary: 查询当前用户的租户信息
+      tags: [users]
+      operationId: getTenantOfCurrentUser
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/TenantDetail"
+    put:
+      summary: 更新当前用户的租户信息（租户管理员）
+      tags: [users]
+      operationId: updateTenantOfCurrentUser
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/TenantEditBase"
+      responses:
+        200:
+          description: 成功
+
+  /v1/tenant/verification-codes:
+    get:
+      summary: 查看当前验证码列表（系统管理员）
+      tags: [verification-codes]
+      operationId: queryVerificationCodeList
+      parameters:
+        - $ref: "#/parameters/queryPageSize"
+        - $ref: "#/parameters/queryCurrentPage"
+        - name: destination
+          in: query
+          type: string
+          required: false
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/VerificationCodePageData"
+    post:
+      summary: 发送验证码
+      tags: [verification-codes]
+      operationId: sendVerificationCode
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/CreateUserVerificationRequest"
+      responses:
+        200:
+          description: 成功
+          schema:
+            type: string
+            description: 测试用验证码
+        429:
+          description: 发送太快，请稍后重试
+  /v1/tenant/user-authentication/{username}:
+    parameters:
+      - name: username
+        in: path
+        type: string
+        required: true
+    post:
+      summary: 认证用户名和密码(服务间调用内部接口)
+      description: 非登录接口，不提供给用户访问，只提供给client访问
+      tags: [authentication]
+      operationId: userAuthentication
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/UserAuthenticationRequest"
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/AuthenticationResult"
+  /v1/tenant/tenant-manager-dispose:
+    post:
+      summary: 处理租户管理员登录逻辑(服务间调用内部接口)
+      description: 接入UC新增接口，用于UC登录成功后判断本地是否存在该用户，不存在则隐式创建，不提供给用户访问，只提供给client访问
+      tags: [authentication]
+      operationId: tenantManagerDispose
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/UcUserInfo"
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/AuthenticationResult"
+  /v1/tenant/phone-authentication/{phone}/{code}:
+    parameters:
+      - name: phone
+        in: path
+        type: string
+        required: true
+      - name: code
+        in: path
+        type: string
+        required: true
+    post:
+      summary: 认证手机号和短信码(服务间调用内部接口)
+      description: 非登录接口，不提供给用户访问，只提供给client访问
+      tags: [authentication]
+      operationId: phoneAuthentication
+      responses:
+        200:
+          description: 成功
+          schema:
+            $ref: "#/definitions/AuthenticationResult"
+  /v1/tenant/reset-password:
+    post:
+      summary: 使用验证码重置密码
+      tags: [users]
+      operationId: resetPasswordByVerificationCode
+      parameters:
+        - name: body
+          in: body
+          schema:
+            $ref: "#/definitions/ResetPasswordRequest"
+      responses:
+        200:
+          description: 成功
+  /v1/tenant/is-manager:
+    get:
+      summary: 判断用户是否是租户管理员
+      tags: [users]
+      operationId: IsManager
+      parameters:
+        - name: username
+          in: query
+          type: string
+          required: true
+        - name: type
+          in: query
+          type: integer
+          minimum: 1
+          maximum: 2
+          default: 1
+          description: 1 用户名 2 手机号
+      responses:
+        200:
+          description: 成功
+          schema:
+            type: boolean
+  /v1/tenant/tenants/all/changelog:
+    post:
+      tags: [management]
+      description: 将全部tenant写入kafka的changelog
+      operationId: syncAllTenantToKafkaChangelog
+      responses:
+        200:
+          description: OK
+          schema:
+            $ref: "#/definitions/SyncToKafkaChangelogResponse"
+
+### common parameters
+parameters:
+  pathTenantId:
+    name: tenantId
+    in: path
+    required: true
+    type: integer
+    format: int64
+    description: 租户id
+  queryPageSize:
+    name: page_size
+    in: query
+    type: integer
+    required: false
+    default: 20
+    description: 每页条数
+  queryCurrentPage:
+    name: current_page
+    in: query
+    type: integer
+    required: false
+    default: 1
+    description: 当前页
+
+### common data structure
+definitions:
+  BaseResp:
+    type: object
+    properties:
+      message:
+        type: string
+  OnePageData:
+    type: object
+    properties:
+      pagination:
+        type: object
+        properties:
+          total_size:
+            type: integer
+            example: 1000
+          current_page:
+            type: integer
+            example: 1
+          page_size:
+            type: integer
+            example: 20
+  CreateLabelRequest:
+    type: object
+    properties:
+      label:
+        type: string
+      description:
+        type: string
+    required: [label, description]
+  UpdateLabelRequest:
+    type: object
+    properties:
+      label:
+        type: string
+      description:
+        type: string
+    required: [label, description]
+  LabelFull:
+    type: object
+    properties:
+      id:
+        type: integer
+        format: int64
+        description: 标签id
+      label:
+        type: string
+        description: 标签名
+      tenant_id:
+        type: integer
+        format: int64
+        description: 租户id
+      description:
+        type: string
+        description: 标签描述
+  LabelPageData:
+    allOf:
+      - $ref: "#/definitions/OnePageData"
+      - type: object
+        properties:
+          list:
+            type: array
+            items:
+              $ref: "#/definitions/LabelFull"
+  TenantEditBase:
+    type: object
+    properties:
+      description:
+        type: string
+        description: 描述
+      organization_name:
+        type: string
+        description: 组织机构
+      industry:
+        type: string
+        description: 行业
+      address:
+        type: string
+        description: 详细地址
+      country:
+        type: string
+        description: 国家或地区
+      province:
+        type: string
+        description: 省份
+      city:
+        type: string
+        description: 城市
+      platform:
+        type: string
+        description: 平台
+    required: [description]
+  TenantBase:
+    allOf:
+      - $ref: "#/definitions/TenantEditBase"
+      - type: object
+        properties:
+          name:
+            type: string
+            minLength: 2
+            maxLength: 32
+            description: 租户名
+          namespace:
+            type: string
+            description: 租户命名空间
+        required: [name, namespace]
+  BatchDeleteTenantUserRequest:
+    type: object
+    properties:
+      ids:
+        type: string
+        description: 逗号分隔的用户id列表
+    required:
+      - ids
+  RegisterTenantRequest:
+    allOf:
+      - $ref: "#/definitions/TenantBase"
+      - type: object
+        properties:
+          username:
+            type: string
+            minLength: 2
+            maxLength: 32
+            description: 用户名
+          password:
+            type: string
+            minLength: 6
+            description: 密码
+          email:
+            type: string
+            minLength: 5
+            description: 邮箱
+          email_verification_code:
+            type: string
+            minLength: 6
+            description: 验证码
+          mobile:
+            type: string
+            pattern: ^\+\d{4,17}$
+            description: 手机号
+          mobile_verification_code:
+            type: string
+            minLength: 6
+            description: 验证码
+          nick_name:
+            type: string
+            description: 昵称
+          gender:
+            type: string
+            description: 性别
+          job:
+            type: string
+            description: 职位
+          department:
+            type: string
+            description: 部门
+          platform:
+            type: string
+            description: 注册平台
+        required: [username, password, mobile, mobile_verification_code,platform]
+
+  CreateTenantRequest:
+    allOf:
+      - $ref: "#/definitions/TenantBase"
+      - type: object
+        properties:
+          tenant_type:
+            type: integer
+            minimum: 1
+            maximum: 2
+            description: >
+              租户类型
+              1 个人
+              2 组织
+          username:
+            type: string
+            minLength: 2
+            maxLength: 32
+            description: 管理员账户名
+          password:
+            type: string
+            minLength: 6
+            description: 管理员密码
+          email:
+            type: string
+            minLength: 5
+            description: 管理员邮箱
+          mobile:
+            type: string
+            pattern: ^\+\d{4,17}$
+            description: 管理员电话
+          gender:
+            type: string
+            description: 性别
+          job:
+            type: string
+            description: 职位
+          department:
+            type: string
+            description: 部门
+          platform:
+            type: string
+            description: 注册平台
+          nick_name:
+            type: string
+            description: 昵称
+        required: [tenant_type, username, password, mobile,platform]
+  UpdateSelfTenantSpecRequest:
+    type: object
+    properties:
+      max_reserves_duration:
+        type: string
+        description: 存储最大保存的时间
+        default: 360D
+      reclaim_policy:
+        type: integer
+        minimum: 1
+        maximum: 2
+        default: 1
+        description: >
+          清理策略:
+          1 - 超出额度自动清理最早日期的数据
+          2 - 超出额度不清理，拒绝接收新数据
+    required:
+      - max_reserves_duration
+      - reclaim_policy
+  UpdateTenantSpecRequest:
+    type: object
+    properties:
+      documents_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 文档数额度（以设备上报的日志、指标数据为准）（条）
+        default: 10000000
+      bytes_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 空间额度（字节）
+        default: 1000000000
+      things_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 允许最多设备数目（个）
+        default: 1000000
+      documents_download_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 数据下载上限（条）
+        default: 10000
+      users_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 用户数量配额（个）
+        default: 100
+      labels_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 标签数量配额（个）
+        default: 200
+      rules_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 规则数量配额（个）
+        default: 2000
+      information_model_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 最大信息模型数
+        default: 1000
+      max_reserves_duration:
+        type: string
+        description: 存储最大保存的时间
+        default: 360D
+      push_rule_quota:
+        type: integer
+        format: int32
+        minimum: 1
+        description: 推送规则配额（个）
+        default: 1
+      alert_rule_quota:
+        type: integer
+        format: int32
+        description: 告警规则配额（个）
+        default: 1
+      reclaim_policy:
+        type: integer
+        minimum: 1
+        maximum: 2
+        default: 1
+        description: >
+          清理策略:
+          1 - 超出额度自动清理最早日期的数据
+          2 - 超出额度不清理，拒绝接收新数据
+    required:
+      - documents_quota
+      - bytes_quota
+      - things_quota
+      - information_model_quota
+      - max_reserves_duration
+      - reclaim_policy
+  GetAllUsageStatisticsResponse:
+    type: object
+    properties:
+      user_count:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 已创建用户数量（个）
+      label_count:
+        type: integer
+        format: int64
+        description: 已创建标签数量（个）
+  GetAllSpecResponse:
+    type: object
+    properties:
+      documents_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 文档数额度（以设备上报的日志、指标数据为准）（条）
+        default: 10000000
+      bytes_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 空间额度（字节）
+        default: 1000000000
+      things_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 允许最多设备数目（个）
+        default: 1000000
+      documents_download_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 数据下载上限（条）
+        default: 10000
+      users_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 用户数量配额（个）
+        default: 100
+      labels_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 标签数量配额（个）
+        default: 200
+      rules_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 规则数量配额（个）
+        default: 2000
+      alert_rule_quota:
+        type: integer
+        format: int32
+        minimum: 1
+        description: 告警规则配额（个）
+        default: 1
+      push_rule_quota:
+        type: integer
+        format: int32
+        minimum: 1
+        description: 推送规则配额（个）
+        default: 1
+      information_model_quota:
+        type: integer
+        format: int64
+        minimum: 1
+        description: 最大信息模型数
+        default: 1000
+  GetTenantSpecResponse:
+    allOf:
+      - $ref: "#/definitions/UpdateTenantSpecRequest"
+      - type: object
+        properties:
+          id:
+            type: integer
+            format: int64
+          tenant_id:
+            type: integer
+            format: int64
+          name:
+            type: string
+          description:
+            type: string
+  TenantUserBase:
+    type: object
+    properties:
+      name:
+        type: string
+        minLength: 4
+        maxLength: 32
+        description: 用户名
+      nick_name:
+        type: string
+        minLength: 4
+        maxLength: 64
+        description: 昵称
+      email:
+        type: string
+        minLength: 4
+        maxLength: 64
+        description: 邮箱
+      mobile:
+        type: string
+        pattern: ^\+\d{4,17}$
+        description: 手机号
+      description:
+        type: string
+        maxLength: 125
+        description: 个人说明
+      gender:
+        type: string
+        description: 性别
+      job:
+        type: string
+        description: 职位
+      department:
+        type: string
+        description: 部门
+      type:
+        type: integer
+        format: int32
+        description: 子用户类别 1 普通子用户 2 权限子用户（用于单独做权限管理的）
+    required: [name, mobile]
+
+  TenantUserDetail:
+    allOf:
+      - $ref: "#/definitions/TenantUserBase"
+      - type: object
+        properties:
+          id:
+            type: integer
+            format: int64
+          avatar:
+            type: string
+            description: 头像
+          status:
+            type: integer
+          tenant_id:
+            type: integer
+            format: int64
+          create_time:
+            type: integer
+            format: int64
+            description: 注册时间。毫秒值
+
+  CreateTenantUserRequest:
+    allOf:
+      - $ref: "#/definitions/TenantUserBase"
+  UpdateTenantUserRequest:
+    allOf:
+      - $ref: "#/definitions/TenantUserBase"
+
+  CreateTenantUserResponse:
+    type: object
+    properties:
+      user_id:
+        type: integer
+        format: int64
+      name:
+        type: string
+        description: 用户名称
+      password:
+        type: string
+        description: 用户随机密码,用户第一次登录后需要修改密码
+  TenantUserPageData:
+    allOf:
+      - $ref: "#/definitions/OnePageData"
+      - type: object
+        properties:
+          list:
+            type: array
+            items:
+              $ref: "#/definitions/TenantUserDetail"
+
+  TenantDetail:
+    allOf:
+      - $ref: "#/definitions/TenantBase"
+      - type: object
+        properties:
+          id:
+            type: integer
+            format: int64
+          status:
+            type: integer
+          tenant_type:
+            type: integer
+            minimum: 1
+            maximum: 2
+            description: 租户类型 1-个人 2-组织
+          manager_id:
+            type: integer
+            format: int64
+          create_time:
+            type: integer
+            format: int64
+            description: 注册时间。毫秒值
+  TenantWithManagerAndSpec:
+    allOf:
+      - $ref: "#/definitions/TenantDetail"
+      - type: object
+        properties:
+          manager:
+            $ref: "#/definitions/TenantUserDetail"
+          specification:
+            $ref: "#/definitions/UpdateTenantSpecRequest"
+  TenantAuditStatistic:
+    type: object
+    properties:
+      pass_count:
+        type: integer
+        description: 审核通过的数量
+      reject_count:
+        type: integer
+        description: 审核不通过的数量
+  TenantWithManager:
+    allOf:
+      - $ref: "#/definitions/TenantDetail"
+      - type: object
+        properties:
+          manager:
+            $ref: "#/definitions/TenantUserDetail"
+  TenantPageData:
+    allOf:
+      - $ref: "#/definitions/OnePageData"
+      - type: object
+        properties:
+          list:
+            type: array
+            items:
+              $ref: "#/definitions/TenantWithManagerAndSpec"
+  TenantAuditPageData:
+    allOf:
+      - $ref: "#/definitions/OnePageData"
+      - type: object
+        properties:
+          list:
+            type: array
+            items:
+              $ref: "#/definitions/TenantWithManager"
+  CreateUserVerificationRequest:
+    type: object
+    properties:
+      type:
+        type: integer
+        minimum: 1
+        maximum: 2
+        description: 1 短信，2 邮件
+      purpose:
+        type: string
+        enum:
+          - register
+          - login
+          - modify
+        description: >
+          用途:
+            * register - 注册
+            * login - 登录
+            * modify - 修改信息
+      destination:
+        type: string
+        minLength: 4
+        maxLength: 100
+    required: [type, destination, purpose,platform]
+  ResetPasswordRequest:
+    type: object
+    properties:
+      type:
+        type: integer
+        minimum: 1
+        maximum: 2
+        description: 1 短信，2 邮件
+      source:
+        type: string
+        minLength: 4
+        maxLength: 100
+        description: 手机号或邮箱地址
+      verification_code:
+        type: string
+        minLength: 6
+        maxLength: 6
+        description: 验证码
+      new_password:
+        type: string
+        minLength: 6
+        maxLength: 30
+        description: 新密码
+    required: [type, source, verification_code, new_password]
+  ActivateUserRequest:
+    type: object
+    properties:
+      type:
+        type: integer
+        minimum: 1
+        maximum: 2
+        description: 1 短信，2 邮件
+      code:
+        type: string
+        minLength: 4
+        maxLength: 15
+    required: [type, code]
+  UpdateCurrentUserProfileRequest:
+    type: object
+    properties:
+      description:
+        type: string
+        description: 简介
+      nick_name:
+        type: string
+        description: 昵称
+      gender:
+        type: string
+        description: 性别
+      job:
+        type: string
+        description: 职位
+      department:
+        type: string
+        description: 部门
+  UpdateCurrentUserPasswordRequest:
+    type: object
+    properties:
+      password:
+        type: string
+        minLength: 6
+        maxLength: 30
+      code:
+        type: string
+        minLength: 6
+        description: 短信验证码
+      mobile:
+        type: string
+        description: 手机号码
+    required: [password, code, mobile]
+  UpdateCurrentUserMobileRequest:
+    type: object
+    properties:
+      old_mobile:
+        type: string
+        pattern: ^\+\d{4,17}$
+        description: 旧手机号
+      new_mobile:
+        type: string
+        pattern: ^\+\d{4,17}$
+        description: 新手机号
+      new_code:
+        type: string
+        minLength: 6
+        maxLength: 6
+        description: 新手机号验证码
+    required: [old_mobile, new_mobile, new_code]
+  UpdateCurrentUserEmailRequest:
+    type: object
+    properties:
+      old_email:
+        type: string
+        minLength: 5
+        description: 旧邮箱
+      new_email:
+        type: string
+        minLength: 5
+        description: 新邮箱
+      new_code:
+        type: string
+        minLength: 6
+        maxLength: 6
+        description: 新邮箱验证码
+    required: [new_email, new_code]
+  UserAuthenticationRequest:
+    type: object
+    properties:
+      password:
+        type: string
+        minLength: 6
+        maxLength: 30
+    required: [password]
+  UcUserInfo:
+    type: object
+    properties:
+      nickname:
+        type: string
+      username:
+        type: string
+      mobile:
+        type: string
+      email:
+        type: string
+      gender:
+        type: integer
+      company:
+        type: string
+      detailaddress:
+        type: string
+      position:
+        type: string
+      industry:
+        type: string
+  AuthenticationResult:
+    type: object
+    properties:
+      user_id:
+        type: integer
+        format: int64
+      username:
+        type: string
+      nick_name:
+        type: string
+      tenant_id:
+        type: integer
+        format: int64
+      tenant_type:
+        type: integer
+      tenant_name:
+        type: string
+      manager:
+        type: boolean
+        default: false
+  VerificationCode:
+    type: object
+    properties:
+      type:
+        type: integer
+        description: 1-SMS 2-EMAIL
+      destination:
+        type: string
+      expire_time:
+        type: string
+      code:
+        type: string
+  VerificationCodePageData:
+    allOf:
+      - $ref: "#/definitions/OnePageData"
+      - type: object
+        properties:
+          list:
+            type: array
+            items:
+              $ref: "#/definitions/VerificationCode"
+  UpdateTenantBasicRequest:
+    type: object
+    properties:
+      description:
+        type: string
+        description: 描述
+      organization_name:
+        type: string
+        description: 组织机构
+      industry:
+        type: string
+        description: 行业
+      address:
+        type: string
+        description: 详细地址
+      country:
+        type: string
+        description: 国家或地区
+      province:
+        type: string
+        description: 省份
+      city:
+        type: string
+        description: 城市
+  LabelScopeEnum:
+    type: string
+    default: all
+    enum:
+      - global
+      - tenant
+      - all
+    description: >
+      查询范围，默认all
+      - global 只查全局
+      - tenant 只查当前租户
+      - all 全局+当前租户
+  LabelsCheckRequest:
+    type: object
+    properties:
+      ids:
+        type: array
+        items:
+          type: integer
+          format: int64
+          description: 标签id
+  LabelsCheckResponse:
+    type: object
+    properties:
+      existing:
+        type: array
+        items:
+          type: integer
+          format: int64
+      missing:
+        type: array
+        items:
+          type: integer
+          format: int64
+  TenantCustomizationItem:
+    type: object
+    required:
+      - key
+      - value
+    properties:
+      key:
+        type: string
+        description: 个性化设置的键，比如语言，logo等
+      value:
+        type: string
+        description: 个性化设置对应的值
+  GetTenantCustomizationResponse:
+    type: object
+    properties:
+      data:
+        type: array
+        items:
+          $ref: "#/definitions/TenantCustomizationItem"
+  UpdateTenantCustomizationRequest:
+    type: object
+    properties:
+      data:
+        type: array
+        items:
+          $ref: "#/definitions/TenantCustomizationItem"
+  SyncToKafkaChangelogResponse:
+    type: object
+    properties:
+      total:
+        type: integer
+  UserPublicProfile:
+    type: object
+    properties:
+      id:
+        type: integer
+        format: int64
+        description: 用户id
+      name:
+        type: string
+        minLength: 4
+        maxLength: 40
+        description: 用户名
+      nick_name:
+        type: string
+        minLength: 4
+        maxLength: 64
+        description: 昵称
+  UserPublicProfileResponse:
+    allOf:
+      - $ref: "#/definitions/BaseResp"
+      - type: object
+        properties:
+          list:
+            type: array
+            items:
+              $ref: "#/definitions/UserPublicProfile"
+
+securityDefinitions:
+  token:
+    type: apiKey
+    name: Authorization
+    in: header
