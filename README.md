@@ -2,6 +2,8 @@
 本demo抽取项目中的swagger代码生成器,根据swagger.yml生成api接口与实体类
 目前存在问题swagger.yml中的info和schemes等属性设置无效,待后续研究.
 
+- maven生成了一些文件在generated-sources中,编辑代码时发现无法导入,需右键项目目录->maven->generate sources and update folders
+
 ### Use OpenAPI to generate codes
 
 We use maven plugin `swagger-codegen-maven-plugin` to generate codes from OpenAPI. You can change the plugin
